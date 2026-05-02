@@ -1,7 +1,11 @@
 {
   "functions": {
     "api/plan.js": {
-      "runtime": "edge"
+      "runtime": "nodejs20.x"
     }
-  }
+  },
+  "routes": [
+    { "src": "/api/plan", "dest": "/api/plan.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
