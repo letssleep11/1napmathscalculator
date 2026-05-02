@@ -7,11 +7,9 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { system, messages } = req.body;
-
-    if (!system || !messages) {
-      return res.status(400).json({ error: 'Missing system or messages' });
-    }
+    const body = req.body;
+    console.log('Request body:', JSON.stringify(body));
+    console.log('API key exists:', !!process.env.ANTHROPIC_API_KEY);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -23,15 +21,18 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        system: system,
-        messages: messages,
+        system: body.system,
+        messages: body.messages,
       }),
     });
 
     const data = await response.json();
+    console.log('Anthropic response type:', data.type);
+    console.log('Anthropic content:', JSON.stringify(data.content));
     return res.status(200).json(data);
 
   } catch (err) {
+    console.error('Error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 };
