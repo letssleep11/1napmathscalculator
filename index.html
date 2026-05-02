@@ -255,7 +255,7 @@ function App() {
       }
 
       const data = await res.json();
-      const text = (data.content || []).map(function(b) { return b.text || ""; }).join("");
+     const text = (data.content || data.completion || []).map(function(b) { return typeof b === 'object' ? (b.text || "") : b; }).join("") || (typeof data === 'string' ? data : "");
 
       if (!text) throw new Error("Empty response");
 
