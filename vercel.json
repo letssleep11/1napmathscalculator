@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/plan.js": {
-      "runtime": "@vercel/node"
+      "runtime": "edge"
     }
   }
 }
