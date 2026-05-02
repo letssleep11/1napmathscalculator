@@ -1,3 +1,4 @@
+export const maxDuration = 30;
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
