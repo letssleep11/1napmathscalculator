@@ -250,14 +250,21 @@ function App() {
         })
       });
 
-      if (!res.ok) {
-        throw new Error("API error: " + res.status);
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); } catch(e) { throw new Error("Bad JSON: " + raw.slice(0,200)); }
+
+      // Extract text from any response shape
+      let text = "";
+      if (data.content && Array.isArray(data.content)) {
+        text = data.content.map(function(b) { return (b && b.text) ? b.text : ""; }).join("");
+      } else if (typeof data.completion === "string") {
+        text = data.completion;
+      } else if (typeof data === "string") {
+        text = data;
       }
 
-      const data = await res.json();
-     const text = (data.content || data.completion || []).map(function(b) { return typeof b === 'object' ? (b.text || "") : b; }).join("") || (typeof data === 'string' ? data : "");
-
-      if (!text) throw new Error("Empty response");
+      if (!text) throw new Error("No text in response: " + JSON.stringify(data).slice(0,200));
 
       const parsed = parseResponse(text, months);
       parsed.babyName = babyName;
@@ -266,7 +273,7 @@ function App() {
       setView("results");
     } catch(err) {
       console.error(err);
-      setError("Something went wrong — please try again in a moment.");
+      setError("Something went wrong: " + err.message);
       setView("form");
     }
   }
