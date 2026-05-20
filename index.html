@@ -30,7 +30,7 @@ input,button{font-family:inherit}
   .card{padding:18px 14px!important}
   .grid-2{grid-template-columns:1fr!important}
   .grid-3{grid-template-columns:1fr 1fr 1fr!important}
-  .grid-time{grid-template-columns:1fr 1fr!important}
+  .grid-time{grid-template-columns:1fr!important}
   .headline{font-size:20px!important}
 }
 </style>
@@ -311,9 +311,9 @@ async function submit(){
 
 // ── Views ───────────────────────────────────────────────────────
 function renderHeader(){
-  return div({style:{background:B.white,borderBottom:"2px solid #C5DED9",padding:"22px 20px 18px",textAlign:"center"}},[
-    el("img",{src:LOGO,alt:"Let's Sleep",style:{height:"28px",display:"block",margin:"0 auto 16px",objectFit:"contain"}},[]),
-    el("h1",{className:"serif header-title",style:{fontSize:"40px",fontWeight:"700",color:"#E0126B",lineHeight:"1.15",marginBottom:"12px"}},[
+  return div({style:{background:B.white,borderBottom:"2px solid #C5DED9",padding:"40px 20px 40px",textAlign:"center"}},[
+    el("img",{src:LOGO,alt:"Let's Sleep",style:{height:"28px",display:"block",margin:"0 auto 48px",objectFit:"contain"}},[]),
+    el("h1",{className:"serif header-title",style:{fontSize:"40px",fontWeight:"700",color:"#E0126B",lineHeight:"1.15",marginBottom:"24px"}},[
       "Nap Maths Calculator"
     ]),
     p({className:"header-sub",style:{fontSize:"16px",color:B.textMid,lineHeight:"1.75",maxWidth:"600px",margin:"0 auto"}},[
