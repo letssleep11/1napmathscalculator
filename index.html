@@ -516,26 +516,28 @@ function renderResults(){
     ]),
 
     // Recalibrate section
-    state.recalibrating
-      ? div({style:{background:B.sagePale,border:"1.5px solid "+B.sageMid,borderRadius:"16px",padding:"20px 22px",marginBottom:"16px"}},[
+    (function(){
+      if(state.recalibrating){
+        const ta=document.createElement("textarea");
+        ta.className="inp";
+        ta.style.minHeight="90px";
+        ta.style.marginBottom="12px";
+        ta.placeholder="e.g. She actually fell asleep at 10am not 9:30, or the nap only lasted 20 minutes...";
+        ta.value=state.recalibrateInput;
+        ta.addEventListener("input",e=>{state.recalibrateInput=e.target.value;});
+        const box=div({id:"recalibrate-box",style:{background:B.sagePale,border:"1.5px solid "+B.sageMid,borderRadius:"16px",padding:"20px 22px",marginBottom:"16px"}},[
           div({style:{fontSize:"13px",fontWeight:"700",color:B.navy,marginBottom:"10px"}},["Tell us what didn't quite fit and we'll adjust the plan:"]),
-          (function(){
-            const ta=document.createElement("textarea");
-            ta.className="inp";
-            ta.style.minHeight="90px";
-            ta.style.marginBottom="12px";
-            ta.placeholder="e.g. She actually fell asleep at 10am not 9:30, or the nap only lasted 20 minutes...";
-            ta.value=state.recalibrateInput;
-            ta.addEventListener("input",e=>{state.recalibrateInput=e.target.value;});
-            return ta;
-          })(),
-          div({style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}},[
+          ta,
+          div({style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginTop:"4px"}},[
             btn({className:"btn-primary",onclick:recalibrate,style:{padding:"13px 16px",fontSize:"15px"}},["Update my plan →"]),
             btn({className:"btn-ghost",onclick:()=>{state.recalibrating=false;state.recalibrateInput="";render();},style:{padding:"13px 16px",fontSize:"15px"}},["Cancel"])
           ]),
           state.error?div({style:{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:"8px",padding:"10px 14px",fontSize:"14px",color:"#B91C1C",marginTop:"10px"}},[state.error]):null
-        ])
-      : btn({className:"btn-ghost",onclick:()=>{state.recalibrating=true;state.error="";render();},style:{marginBottom:"12px",color:B.navy,borderColor:B.sageMid,fontWeight:"600"}},["🔄  Not quite right? Give us more information"]),
+        ]);
+        return box;
+      }
+      return btn({className:"btn-ghost",onclick:()=>{state.recalibrating=true;state.error="";render();},style:{marginBottom:"12px",color:B.navy,borderColor:B.sageMid,fontWeight:"600"}},["🔄  Not quite right? Give us more information"]);
+    })(),
     tryAgainBtn,
     p({style:{textAlign:"center",fontSize:"13px",color:B.textLight,lineHeight:"1.6",marginTop:"14px",marginBottom:"22px"}},["Your nap maths plan is generated using the Let's Sleep methodology."]),
     renderPromo(),
@@ -572,7 +574,15 @@ function render(){
                              renderResults()
   ]);
   app.append(renderHeader(), body);
-  window.scrollTo({top:0,behavior:"smooth"});
+  if(!state.recalibrating){
+    window.scrollTo({top:0,behavior:"smooth"});
+  } else {
+    // Scroll to the recalibrate box
+    setTimeout(()=>{
+      const el=document.getElementById("recalibrate-box");
+      if(el) el.scrollIntoView({behavior:"smooth",block:"center"});
+    },50);
+  }
 }
 
 // Init
