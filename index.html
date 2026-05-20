@@ -167,13 +167,14 @@ const B = {
 const state = {
   view:"form", name:"", years:"", months:"", weeks:"",
   wakeTime:"", nap1:"", nap2:"", nap3:"", bedTime:"",
-  situation:"", result:null, error:""
+  situation:"", result:null, error:"", recalibrating:false, recalibrateInput:"", previousPlan:""
 };
 
 const STORAGE_KEY = "letsleep_routine_v1";
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"null")||{};}catch{return{};}}
 function saveRoutine(){
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify({
+    name:state.name,years:state.years,months:state.months,weeks:state.weeks,
     wakeTime:state.wakeTime,nap1:state.nap1,nap2:state.nap2,nap3:state.nap3,bedTime:state.bedTime
   }));}catch{}
 }
@@ -277,6 +278,68 @@ function statCard(label,value){
 }
 
 // ── Submit ──────────────────────────────────────────────────────
+
+async function recalibrate(){
+  if(!state.recalibrateInput.trim()){
+    state.error="Please add some extra information so we can adjust the plan.";
+    render();return;
+  }
+  state.error="";state.view="loading";render();
+
+  const babyName=state.name.trim()||"your baby";
+  const ageParts=[state.years&&state.years+" year"+(state.years!=="1"?"s":""),state.months&&state.months+" month"+(state.months!=="1"?"s":""),state.weeks&&state.weeks+" week"+(state.weeks!=="1"?"s":"")].filter(Boolean);
+  const ageStr=ageParts.join(" and ")||"unknown age";
+  const routine=[state.wakeTime&&"Wake up: "+state.wakeTime,state.nap1&&"Nap 1: "+state.nap1,state.nap2&&"Nap 2: "+state.nap2,state.nap3&&"Nap 3: "+state.nap3,state.bedTime&&"Bedtime: "+state.bedTime].filter(Boolean).join(", ")||"not provided";
+  const msg="Baby name: "+babyName+"\nAge: "+ageStr+"\nUsual routine: "+routine+"\nOriginal situation: "+state.situation+"\n\nPrevious plan given:\n"+state.previousPlan+"\n\nAdditional information from parent: "+state.recalibrateInput+"\n\nUsing the previous plan as context and the new information provided, please revise and improve the plan. Keep what was working and adjust what needs to change.";
+
+  const m=totalMonths();
+  try{
+    const data=await callAPI(SYSTEM_PROMPT,[{role:"user",content:msg}]);
+    const text=(data.content||[]).map(b=>b.text||"").join("");
+    const parsed=parseResponse(text,m);
+    parsed.babyName=babyName;parsed.ageStr=ageStr;
+    state.result=parsed;
+    state.recalibrating=false;
+    state.recalibrateInput="";
+    state.view="results";
+  }catch(e){
+    console.error("Recalibrate error:",e);
+    state.error="Something went wrong — please try again. ("+e.message+")";state.view="results";
+  }
+  render();
+}
+
+
+async function callAPI(system, messages){
+  // Try /api/plan proxy first (Vercel production)
+  try {
+    const res = await fetch("/api/plan", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({system, messages})
+    });
+    if(res.ok){
+      return await res.json();
+    }
+  } catch(e){}
+
+  // Fall back to direct Anthropic API (testing/sidebar)
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "anthropic-version":"2023-06-01"
+    },
+    body:JSON.stringify({
+      model:"claude-sonnet-4-20250514",
+      max_tokens:1200,
+      system,
+      messages
+    })
+  });
+  return await res.json();
+}
+
 async function submit(){
   if(!state.situation.trim()){
     state.error="Please describe what's happened today or what you need help planning.";
@@ -297,14 +360,15 @@ async function submit(){
   const msg="Baby name: "+babyName+"\nAge: "+ageStr+"\nUsual routine: "+routine+"\nSituation today: "+state.situation+"\n\nPlease give a full troubleshooting plan (or pre-plan with two options if planning ahead).";
 
   try{
-    const res=await fetch("/api/plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:SYSTEM_PROMPT,messages:[{role:"user",content:msg}]})});
-    const data=await res.json();
+    const data=await callAPI(SYSTEM_PROMPT,[{role:"user",content:msg}]);
     const text=(data.content||[]).map(b=>b.text||"").join("");
     const parsed=parseResponse(text,m);
     parsed.babyName=babyName;parsed.ageStr=ageStr;
+    state.previousPlan=state.situation+"\n\nPlan steps: "+parsed.steps.join(" | ")+"\nBedtime: "+parsed.bedtime;
     state.result=parsed;state.view="results";
   }catch(e){
-    state.error="Something went wrong — please try again.";state.view="form";
+    console.error("Submit error:",e);
+    state.error="Something went wrong — please try again. ("+e.message+")";state.view="form";
   }
   render();
 }
@@ -450,6 +514,28 @@ function renderResults(){
       div({style:{fontSize:"11px",fontWeight:"700",letterSpacing:"0.12em",textTransform:"uppercase",color:B.sage,marginBottom:"10px"}},["Bedtime guidance"]),
       p({style:{fontSize:"15px",lineHeight:"1.75",color:"rgba(255,255,255,0.92)",margin:"0"}},[r.bedtime])
     ]),
+
+    // Recalibrate section
+    state.recalibrating
+      ? div({style:{background:B.sagePale,border:"1.5px solid "+B.sageMid,borderRadius:"16px",padding:"20px 22px",marginBottom:"16px"}},[
+          div({style:{fontSize:"13px",fontWeight:"700",color:B.navy,marginBottom:"10px"}},["Tell us what didn't quite fit and we'll adjust the plan:"]),
+          (function(){
+            const ta=document.createElement("textarea");
+            ta.className="inp";
+            ta.style.minHeight="90px";
+            ta.style.marginBottom="12px";
+            ta.placeholder="e.g. She actually fell asleep at 10am not 9:30, or the nap only lasted 20 minutes...";
+            ta.value=state.recalibrateInput;
+            ta.addEventListener("input",e=>{state.recalibrateInput=e.target.value;});
+            return ta;
+          })(),
+          div({style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px"}},[
+            btn({className:"btn-primary",onclick:recalibrate,style:{padding:"13px 16px",fontSize:"15px"}},["Update my plan →"]),
+            btn({className:"btn-ghost",onclick:()=>{state.recalibrating=false;state.recalibrateInput="";render();},style:{padding:"13px 16px",fontSize:"15px"}},["Cancel"])
+          ]),
+          state.error?div({style:{background:"#FEF2F2",border:"1.5px solid #FECACA",borderRadius:"8px",padding:"10px 14px",fontSize:"14px",color:"#B91C1C",marginTop:"10px"}},[state.error]):null
+        ])
+      : btn({className:"btn-ghost",onclick:()=>{state.recalibrating=true;state.error="";render();},style:{marginBottom:"12px",color:B.navy,borderColor:B.sageMid,fontWeight:"600"}},["🔄  Not quite right? Give us more information"]),
     tryAgainBtn,
     p({style:{textAlign:"center",fontSize:"13px",color:B.textLight,lineHeight:"1.6",marginTop:"14px",marginBottom:"22px"}},["Your nap maths plan is generated using the Let's Sleep methodology."]),
     renderPromo(),
@@ -492,6 +578,10 @@ function render(){
 // Init
 (function init(){
   const s=loadSaved();
+  if(s.name)    state.name=s.name;
+  if(s.years)   state.years=s.years;
+  if(s.months)  state.months=s.months;
+  if(s.weeks)   state.weeks=s.weeks;
   if(s.wakeTime)state.wakeTime=s.wakeTime;
   if(s.nap1)    state.nap1=s.nap1;
   if(s.nap2)    state.nap2=s.nap2;
