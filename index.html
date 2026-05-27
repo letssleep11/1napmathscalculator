@@ -183,6 +183,13 @@ const state = {
 };
 
 const STORAGE_KEY = "letsleep_routine_v1";
+const PLAN_KEY = "letsleep_last_plan_v1";
+function saveLastPlan(result, situation){
+  try{localStorage.setItem(PLAN_KEY,JSON.stringify({result, situation, savedAt:new Date().toLocaleString("en-AU",{dateStyle:"short",timeStyle:"short"})}));}catch{}
+}
+function loadLastPlan(){
+  try{return JSON.parse(localStorage.getItem(PLAN_KEY)||"null");}catch{return null;}
+}
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||"null")||{};}catch{return{};}}
 function saveRoutine(){
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify({
@@ -319,6 +326,7 @@ async function recalibrate(){
     state.recalibrating=false;
     state.recalibrateInput="";
     state.view="results";
+    saveLastPlan(parsed, state.situation);
     setTimeout(launchConfetti,200);
   }catch(e){
     console.error("Recalibrate error:",e);
@@ -435,6 +443,7 @@ async function submit(){
     parsed.babyName=babyName;parsed.ageStr=ageStr;
     state.previousPlan=state.situation+"\n\nPlan steps: "+parsed.steps.join(" | ")+"\nBedtime: "+parsed.bedtime;
     state.result=parsed;state.view="results";
+    saveLastPlan(parsed, state.situation);
     setTimeout(launchConfetti,200);
   }catch(e){
     console.error("Submit error:",e);
@@ -528,6 +537,17 @@ function renderForm(){
     card,
     errDiv,
     submitBtn,
+    (function(){
+      const saved=loadLastPlan();
+      if(!saved) return null;
+      return div({style:{marginTop:"10px",marginBottom:"4px"}},[
+        btn({className:"btn-ghost",style:{color:B.navy,borderColor:B.sageMid,fontSize:"14px"},onclick:()=>{
+          state.result=saved.result;
+          state.view="results";
+          render();
+        }},["📋  View last plan (" + saved.savedAt + ")"])
+      ]);
+    })(),
     p({style:{textAlign:"center",fontSize:"13px",color:B.textLight,lineHeight:"1.6",marginTop:"14px",marginBottom:"22px"}},["Your nap maths plan is generated using the Let's Sleep methodology."]),
     renderFooter()
   ]);
